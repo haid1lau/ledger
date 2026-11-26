@@ -2,3 +2,8 @@
 data/
 __pycache__/
 .pytest_cache/
+# Claude Code + graphify: machine-specific settings and local caches
+.claude/settings.local.json
+.claude/settings.json
+graphify-out/cache/
+graphify-out/manifest.json
