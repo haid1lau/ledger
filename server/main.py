@@ -1,5 +1,6 @@
 """Ledger API + static front end.  Run:  uvicorn server.main:app --port 5178"""
 import json
+import logging
 import re
 import uuid
 from contextlib import asynccontextmanager
@@ -8,7 +9,7 @@ from typing import Literal
 from urllib.parse import urlsplit
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
@@ -21,6 +22,7 @@ RECEIPT_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp
                  "image/gif": ".gif", "application/pdf": ".pdf"}
 MAX_RECEIPT = 10 * 1024 * 1024
 MAX_CSV = 5 * 1024 * 1024
+log = logging.getLogger("uvicorn.error")   # shows up in the terminal running Ledger
 
 
 @asynccontextmanager
@@ -512,6 +514,63 @@ def import_json(body: ImportJSON, uid=Depends(user_id), conn=Depends(db.get_db))
             (*vals, uid))
     materialize(conn, uid)
     return {"imported": n}
+
+
+# ---------- ask: the spending agent (agent.py; see AGENT.md) ----------
+
+class AskTurn(BaseModel):
+    q: str = Field(max_length=500)
+    a: str
+
+    @field_validator("a")
+    @classmethod
+    def trim_answer(cls, v):   # a long earlier answer is shortened, not refused: follow-ups keep working
+        return v if len(v) <= 4000 else v[:4000] + " …"
+
+
+class AskIn(BaseModel):
+    question: str = Field(max_length=500)
+    history: list[AskTurn] = Field(default_factory=list, max_length=6)   # earlier Q&As, for follow-ups
+
+    @field_validator("question")
+    @classmethod
+    def not_blank(cls, v):
+        if not v.strip():
+            raise ValueError("Type a question first.")
+        return v.strip()
+
+
+@app.post("/api/ask")
+def ask(body: AskIn, uid=Depends(user_id)):
+    """Answer a question with the local model, streaming one JSON event per line as the agent works.
+    The agent reads the database read-only, through views that only show this account's rows."""
+    try:
+        import agent  # the same agent as the terminal's agent.py
+    except ImportError:
+        raise HTTPException(503, "The Ask feature needs the openai package: .venv/bin/pip install -r requirements.txt")
+    conn, _ = agent.open_database(db.DB_PATH, uid)
+    history = [(t.q, t.a) for t in body.history]
+
+    def events():
+        line = lambda e: json.dumps(e, default=str) + "\n"
+        try:
+            for event in agent.agent_steps(body.question, conn, agent.make_client(), agent.MODEL,
+                                           agent.todays_date(), history):
+                yield line(event)
+        except agent.APIConnectionError:
+            yield line({"type": "error", "message": "Can't reach the local model. Start Ollama (open the app, "
+                        "or run `ollama serve`) and ask again."})
+        except agent.APIStatusError as e:
+            hint = f" Try `ollama pull {agent.MODEL}`." if e.status_code == 404 else ""
+            yield line({"type": "error", "message": f"The model server returned an error: {e.message}.{hint}"})
+        except Exception:  # anything else: details go to the server's terminal, a plain message to the page
+            log.exception("Ask failed")
+            yield line({"type": "error", "message": "Something went wrong while answering. "
+                        "The details are in the terminal running Ledger."})
+        finally:
+            conn.close()
+
+    return StreamingResponse(events(), media_type="application/x-ndjson")
 
 
 # ---------- front end ----------

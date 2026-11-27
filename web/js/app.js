@@ -237,6 +237,7 @@ function showView(name, instant) {
     if (!RM) { void next.offsetWidth; next.classList.add('entering'); setTimeout(() => next.classList.remove('entering'), 1600); }
     if (name === 'budgets') { renderBudgets(); $('bgrid').querySelectorAll('.bcard.over').forEach(c => c.classList.add('shake')); }
     if (name === 'summary') renderSummary();
+    if (name === 'ask') Ask.shown();
   };
   view = name; moveInd();
   if (instant || RM || prev === next) return enter();
@@ -608,6 +609,7 @@ function palRender() {
     { g: 'Go to', label: 'Income', run: () => showView('income') },
     { g: 'Go to', label: 'Budgets', run: () => showView('budgets') },
     { g: 'Go to', label: 'Summary', run: () => showView('summary') },
+    { g: 'Go to', label: 'Ask about your spending', run: () => showView('ask') },
   ];
   if (!S.exps.length) acts.push({ g: 'Actions', label: 'Load sample data', run: loadSample });
   const hits = q ? S.exps.filter(e => (e.note || '').toLowerCase().includes(q) || cat(e.cat).name.toLowerCase().includes(q) || e.tags.some(t => ('#' + t).includes(q)))
@@ -717,7 +719,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { const s = openSheetId(); if (s) { e.preventDefault(); closeSheet(s); } return; }
   if (typing || e.metaKey || e.ctrlKey || e.altKey || openSheetId()) return;
   if (e.key === 'n' || e.key === 'N') { e.preventDefault(); openExp(); }
-  const map = { 1: 'overview', 2: 'expenses', 3: 'income', 4: 'budgets', 5: 'summary' };
+  const map = { 1: 'overview', 2: 'expenses', 3: 'income', 4: 'budgets', 5: 'summary', 6: 'ask' };
   if (map[e.key]) showView(map[e.key]);
 });
 // keep focus inside an open sheet
@@ -745,7 +747,7 @@ let authMode = 'login';
 async function showAuth(mode, note) {
   ME = null; S = EMPTY();
   ['pal', 'sheetExp', 'sheetCat', 'sheetInc', 'sheetRule', 'sheetData', 'sheetAcct'].forEach(id => closeSheet(id, true));
-  banner(); render();                                   // drop the previous user's data from the page
+  banner(); render(); Ask.reset();                      // drop the previous user's data from the page
   document.body.classList.add('signed-out'); $('auth').hidden = false; Login.show();
   let st = { signups_open: true, has_users: true };
   try { st = await api('GET', '/api/auth/status'); } catch (e) {}

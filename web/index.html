@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=20261016e">
+<link rel="stylesheet" href="css/app.css?v=20261128b">
 </head>
 <body>
 <div class="bg-grid" aria-hidden="true"></div>
@@ -84,6 +84,7 @@
       <button class="nav-btn" role="tab" data-view="income">Income</button>
       <button class="nav-btn" role="tab" data-view="budgets">Budgets</button>
       <button class="nav-btn" role="tab" data-view="summary">Summary</button>
+      <button class="nav-btn" role="tab" data-view="ask">Ask</button>
     </nav>
     <div class="top-acts">
       <button class="kbd-btn" data-act="palette" aria-label="Open command palette">
@@ -200,6 +201,23 @@
       <div class="panel" data-in id="tagPanel">
         <div class="panel-h"><h2>By tag</h2><span class="eyebrow">click a tag to see its expenses</span></div>
         <div id="sumTags"></div>
+      </div>
+    </section>
+
+    <!-- ASK: the spending agent (agent.py) -->
+    <section class="view" id="v-ask" role="tabpanel" aria-label="Ask" hidden>
+      <div class="view-h" data-in>
+        <h1 class="title">Ask</h1>
+        <p class="hint ask-sub">Plain-English questions about your spending, answered by the local model on this computer. It can only read your data, and it shows its working.</p>
+      </div>
+      <div class="panel ask-panel" data-in>
+        <form class="ask-form" id="askForm">
+          <input class="inp" id="askQ" maxlength="500" placeholder="How much did I spend on food in October?" aria-label="Your question" autocomplete="off">
+          <button class="btn primary" id="askGo" type="submit">Ask</button>
+        </form>
+        <div class="ask-sugg" id="askSugg"></div>
+        <div class="ask-thread" id="askThread" aria-live="polite"></div>
+        <div class="ask-foot"><button class="link" id="askNew" type="button" hidden>New conversation</button></div>
       </div>
     </section>
   </main>
@@ -388,9 +406,10 @@
 <div class="toast" id="toast" role="status" aria-live="polite"><span class="tdot"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#07070B" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span id="toastTxt"></span></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="js/core.js?v=20261016d"></script>
-<script src="js/orb.js?v=20261016d"></script>
-<script src="js/login.js?v=20261016d"></script>
-<script src="js/app.js?v=20261016d"></script>
+<script src="js/core.js?v=20261128b"></script>
+<script src="js/orb.js?v=20261128b"></script>
+<script src="js/login.js?v=20261128b"></script>
+<script src="js/ask.js?v=20261128b"></script>
+<script src="js/app.js?v=20261128b"></script>
 </body>
 </html>
