@@ -116,3 +116,34 @@ def test_ask_explains_when_the_model_is_not_running(client, monkeypatch):
 def test_ask_refuses_cross_site_requests(client):
     r = client.post("/api/ask", json={"question": "Total?"}, headers={"Origin": "https://evil.example"})
     assert r.status_code == 403
+
+
+def test_a_long_earlier_answer_is_trimmed_not_refused(client, model):
+    fake = model(answer("ok"))
+    history = [{"q": "List every food expense", "a": "x" * 5000}]
+    events(client.post("/api/ask", json={"question": "and the total?", "history": history}))
+    sent = fake.requests[0]["messages"][2]["content"]
+    assert len(sent) < 4100 and sent.endswith("…")
+
+
+def test_odd_text_from_the_model_becomes_an_error_it_can_read(client, model):
+    model(tool_call("SELECT '\ud800'"), answer("ok"))   # a lone surrogate SQLite can't encode
+    ev = events(client.post("/api/ask", json={"question": "?"}))
+    assert "error" in ev[2]["result"] and ev[-1]["type"] == "answer"
+
+
+def test_unexpected_errors_show_a_plain_message(client, monkeypatch):
+    def boom(**_):
+        raise RuntimeError("/secret/path/to/ledger.db exploded")
+    monkeypatch.setattr(agent, "make_client", lambda *a, **k: NS(chat=NS(completions=NS(create=boom))))
+    ev = events(client.post("/api/ask", json={"question": "?"}))
+    assert ev[-1]["type"] == "error" and "secret" not in ev[-1]["message"]
+
+
+def test_open_database_explains_a_file_that_is_not_ledger(tmp_path):
+    bad = tmp_path / "old.db"
+    import sqlite3
+    sqlite3.connect(bad).executescript("CREATE TABLE expenses (id INTEGER, amount REAL);")
+    for path in (bad, "web/index.html"):
+        with pytest.raises(agent.SetupError):
+            agent.open_database(path, 1)

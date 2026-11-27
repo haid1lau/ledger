@@ -1,5 +1,6 @@
 """Ledger API + static front end.  Run:  uvicorn server.main:app --port 5178"""
 import json
+import logging
 import re
 import uuid
 from contextlib import asynccontextmanager
@@ -21,6 +22,7 @@ RECEIPT_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp
                  "image/gif": ".gif", "application/pdf": ".pdf"}
 MAX_RECEIPT = 10 * 1024 * 1024
 MAX_CSV = 5 * 1024 * 1024
+log = logging.getLogger("uvicorn.error")   # shows up in the terminal running Ledger
 
 
 @asynccontextmanager
@@ -518,7 +520,12 @@ def import_json(body: ImportJSON, uid=Depends(user_id), conn=Depends(db.get_db))
 
 class AskTurn(BaseModel):
     q: str = Field(max_length=500)
-    a: str = Field(max_length=4000)
+    a: str
+
+    @field_validator("a")
+    @classmethod
+    def trim_answer(cls, v):   # a long earlier answer is shortened, not refused: follow-ups keep working
+        return v if len(v) <= 4000 else v[:4000] + " …"
 
 
 class AskIn(BaseModel):
@@ -556,8 +563,10 @@ def ask(body: AskIn, uid=Depends(user_id)):
         except agent.APIStatusError as e:
             hint = f" Try `ollama pull {agent.MODEL}`." if e.status_code == 404 else ""
             yield line({"type": "error", "message": f"The model server returned an error: {e.message}.{hint}"})
-        except Exception as e:  # anything else: say so in the page instead of cutting the stream off
-            yield line({"type": "error", "message": f"Something went wrong: {type(e).__name__}: {e}"})
+        except Exception:  # anything else: details go to the server's terminal, a plain message to the page
+            log.exception("Ask failed")
+            yield line({"type": "error", "message": "Something went wrong while answering. "
+                        "The details are in the terminal running Ledger."})
         finally:
             conn.close()
 

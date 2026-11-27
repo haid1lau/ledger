@@ -18,6 +18,7 @@ number for the wrong reason.
 import argparse
 import json
 import os
+import re
 import sqlite3
 import sys
 import time
@@ -59,7 +60,8 @@ CASES = [
     {"q": "Did I go over my food budget in October? By how much?",
      "sql": "SELECT c.budget, ROUND(SUM(e.amount),2), ROUND(SUM(e.amount) - c.budget, 2) FROM expenses e "
             "JOIN categories c ON c.id = e.cat_id WHERE e.user_id = 1 AND c.name = 'Food' AND e.date LIKE '2026-10-%'",
-     "expect": [["6.62"], ["yes", "over", "exceeded"]]},
+     "expect": [["6.62"], ["yes", "over", "exceeded"]],
+     "forbid": ["not over", "didn't go over", "did not go over", "under budget", "under your", "within"]},
     {"q": "How much have I saved this year (income minus spending)?",
      "sql": "SELECT (SELECT SUM(amount) FROM incomes WHERE user_id = 1 AND date LIKE '2026-%'), "
             "(SELECT ROUND(SUM(amount),2) FROM expenses WHERE user_id = 1 AND date LIKE '2026-%'), "
@@ -77,10 +79,19 @@ CASES = [
 ]
 
 
+def found(option, text):
+    """Words match anywhere; a number must stand on its own, so "6.62" doesn't match inside
+    "406.62" and "15" doesn't match "2026-11-15" or "150". "1116.5" still matches "1116.50"."""
+    if not re.fullmatch(r"\d+(\.\d+)?", option):
+        return option in text
+    tail = r"0*(?!\d)" if "." in option else r"(?!\d|\.\d)"
+    return re.search(rf"(?<![\d.\-/]){re.escape(option)}{tail}", text) is not None
+
+
 def check(answer, case):
     text = answer.lower().replace("$", "").replace(",", "")
     text_with_commas = answer.lower()
-    missing = [group for group in case["expect"] if not any(opt in text for opt in group)]
+    missing = [group for group in case["expect"] if not any(found(opt, text) for opt in group)]
     forbidden = [w for w in case.get("forbid", []) if w in text or w in text_with_commas]
     return not missing and not forbidden, missing, forbidden
 

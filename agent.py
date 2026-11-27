@@ -105,11 +105,27 @@ def open_database(path, user_id=None):
     # check_same_thread=False: the web app may run one question's steps on different threads
     # (one at a time), which is safe; SQLite would otherwise refuse.
     conn = sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True, check_same_thread=False)
+    try:
+        return conn, _set_up_views(conn, path, user_id)
+    except SetupError:
+        conn.close()
+        raise
+    except sqlite3.DatabaseError as e:  # not SQLite at all, or a much older Ledger file
+        conn.close()
+        raise SetupError(f"{path} doesn't look like a current Ledger database ({e}).") from e
+
+
+def _set_up_views(conn, path, user_id):
+    # Check the file has the tables and the per-account user_id column this relies on.
+    for table in ("users", *TABLES):
+        cols = {row[1] for row in conn.execute(f"PRAGMA main.table_info({table})")}
+        if not cols or (table != "users" and "user_id" not in cols):
+            raise SetupError(f"{path} doesn't look like a current Ledger database "
+                             f"(table {table!r} is missing or has no accounts). Open it in Ledger once to upgrade it.")
 
     if user_id is None:  # pick the only account, or ask which one
         ids = [row[0] for row in conn.execute("SELECT id FROM users ORDER BY id")]
         if len(ids) != 1:
-            conn.close()
             raise SetupError(f"This database has {len(ids)} accounts. Choose one with --user ID "
                              f"(or LEDGER_AGENT_USER_ID). Account ids: {ids}")
         user_id = ids[0]
@@ -125,7 +141,7 @@ def open_database(path, user_id=None):
                    if row[1] != "user_id"]
         conn.execute(f"CREATE TEMP VIEW {table} AS SELECT {', '.join(columns)} "
                      f"FROM main.{table} WHERE user_id = {user_id}")
-    return conn, user_id
+    return user_id
 
 
 SQLITE_RECURSIVE = getattr(sqlite3, "SQLITE_RECURSIVE", 33)
@@ -267,15 +283,19 @@ def parse_arguments(arguments_json):
 
 
 def call_tool(conn, name, args, arguments_json=""):
-    """Run the tool the model asked for. Always returns a dict, never raises."""
+    """Run the tool the model asked for. Always returns a dict, never raises: whatever goes
+    wrong becomes an error message the model can read and react to."""
     if args is None:
         return {"error": f"Your arguments were not valid JSON: {arguments_json!r}"}
-    if name == "list_tables":
-        return list_tables(conn)
-    if name == "describe_table":
-        return describe_table(conn, str(args.get("name", "")))
-    if name == "run_query":
-        return run_query(conn, str(args.get("sql", "")))
+    try:
+        if name == "list_tables":
+            return list_tables(conn)
+        if name == "describe_table":
+            return describe_table(conn, str(args.get("name", "")))
+        if name == "run_query":
+            return run_query(conn, str(args.get("sql", "")))
+    except Exception as e:  # e.g. text SQLite can't encode; run_query has already reset its guards
+        return {"error": f"{type(e).__name__}: {e}"}
     return {"error": f"There is no tool called {name!r}. Use list_tables, describe_table or run_query."}
 
 
@@ -314,7 +334,7 @@ class Trace:
     def tool_call(self, name, args):
         if name == "run_query" and isinstance(args, dict) and "sql" in args:
             self.show(f"  → run_query", "cyan")
-            for line in args["sql"].strip().splitlines():
+            for line in str(args["sql"]).strip().splitlines():
                 self.show(f"      {line}", "yellow")
         else:
             shown = ", ".join(f"{k}={v!r}" for k, v in args.items()) if isinstance(args, dict) else args

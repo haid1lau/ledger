@@ -85,7 +85,7 @@ const Ask = (() => {
     } else if (e.type === 'answer') {
       t.ans.innerHTML = md(e.text);
       finish(t, `Show how · ${e.steps} step${e.steps === 1 ? '' : 's'} · ${t.queries} quer${t.queries === 1 ? 'y' : 'ies'} · ${secs(t)}`);
-      history = [...history, { q: t.el.querySelector('.ask-q').textContent, a: e.text }].slice(-6);
+      history = [...history, { q: t.el.querySelector('.ask-q').textContent, a: e.text.slice(0, 4000) }].slice(-6);
       $('askNew').hidden = false;
       return true;
     } else if (e.type === 'error') {
@@ -113,11 +113,13 @@ const Ask = (() => {
     setBusy(true);
     ctrl = new AbortController();
     let ended = false;
+    // Only a failed fetch/read means the server is unreachable; other errors keep their own message.
+    const offline = e => { if (e.name === 'AbortError') throw e; throw new Error('Can\'t reach the Ledger server. Is it running?'); };
     try {
       const res = await fetch('/api/ask', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: q, history }), signal: ctrl.signal,
-      });
+      }).catch(offline);
       if (!res.ok) {
         const d = (await res.json().catch(() => null))?.detail;
         if (res.status === 401) onAuthLost();
@@ -127,20 +129,22 @@ const Ask = (() => {
       const reader = res.body.getReader(), dec = new TextDecoder();
       let buf = '';
       for (;;) {
-        const { value, done } = await reader.read();
+        const { value, done } = await reader.read().catch(offline);
         if (done) break;
         buf += dec.decode(value, { stream: true });
         let i;
         while ((i = buf.indexOf('\n')) >= 0) {
           const line = buf.slice(0, i); buf = buf.slice(i + 1);
-          if (line.trim()) ended = draw(t, JSON.parse(line)) || ended;
+          if (!line.trim()) continue;
+          try { ended = draw(t, JSON.parse(line)) || ended; }
+          catch (e) { throw new Error(`Couldn't show part of the answer (${e.message}).`); }
         }
       }
       if (!ended) fail(t, 'The answer stopped part-way. Try asking again.');
     } catch (err) {
-      if (err.name === 'AbortError') return;
-      fail(t, err instanceof TypeError ? 'Can\'t reach the Ledger server. Is it running?' : err.message);
+      if (err.name !== 'AbortError') fail(t, err.message || 'Something went wrong.');
     } finally {
+      clearInterval(t.timer);   // also when cancelled (logout), so no timer keeps ticking
       ctrl = null; setBusy(false);
     }
   }
