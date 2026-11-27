@@ -500,6 +500,58 @@ body.app-enter .app{animation:appIn 1.1s var(--out) both}
 .btn.danger.armed{background:var(--bad);color:#07070B;border-color:var(--bad)}
 #sheetAcct .field{gap:12px}
 
+/* ---------- ask (the spending agent) ---------- */
+.ask-sub{max-width:440px}
+.ask-panel{gap:16px}
+.ask-form{display:flex;gap:10px}
+.ask-form .inp{flex:1;min-width:0}
+.ask-form .btn{height:52px;border-radius:14px;min-width:110px}
+.ask-sugg{display:flex;flex-wrap:wrap;gap:8px}
+.ask-chip{min-height:34px;padding:6px 14px;border-radius:999px;border:1px solid var(--line2);background:transparent;color:var(--ink2);font:400 13px var(--sans);text-align:left;cursor:pointer;transition:border-color .2s,color .2s}
+.ask-chip:hover{border-color:var(--muted);color:var(--ink)}
+.ask-thread{display:flex;flex-direction:column;gap:22px}
+.ask-thread:empty{display:none}
+.ask-turn{display:flex;flex-direction:column;gap:12px;padding-top:20px;border-top:1px solid var(--line);min-width:0}
+.ask-q{font:600 18px var(--disp);letter-spacing:-.01em}
+.ask-steps{border:1px solid var(--line);border-radius:14px;background:#0B0B11;min-width:0}
+.ask-steps summary{display:flex;align-items:center;gap:10px;padding:11px 14px;font:500 12px var(--mono);letter-spacing:.04em;color:var(--muted);cursor:pointer;list-style:none}
+.ask-steps summary::-webkit-details-marker{display:none}
+.ask-steps summary::after{content:'';margin-left:auto;width:7px;height:7px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform .25s var(--out)}
+.ask-steps[open] summary::after{transform:rotate(45deg)}
+.ask-steps summary:hover{color:var(--ink)}
+/* while working: a plain "Thinking…" line with a shimmer, no box, like other AI chats */
+.ask-steps.live:not([open]){border-color:transparent;background:transparent}
+.ask-steps.live:not([open]) summary{padding-left:0}
+.ask-steps.live .ask-status{font:500 15px var(--sans);letter-spacing:0;background:linear-gradient(90deg,var(--muted) 0%,var(--ink) 50%,var(--muted) 100%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:askShimmer 1.8s linear infinite}
+@keyframes askShimmer{from{background-position:100% 0}to{background-position:-100% 0}}
+.ask-time{font:400 12px var(--mono);color:var(--faint)}
+.ask-log{margin:0;padding:0 14px 14px;list-style:none;display:flex;flex-direction:column;gap:10px}
+.ask-log li{font:400 13px/1.5 var(--mono);color:var(--ink2);min-width:0;overflow-wrap:anywhere}
+.ask-log .ask-think{color:var(--faint);font-style:italic}
+.ask-tool{color:#7CF3FF}
+.ask-sql{margin:6px 0 0;padding:10px 12px;border-radius:10px;background:var(--s2);color:#FFD166;font:400 12.5px/1.55 var(--mono);white-space:pre-wrap;overflow-x:auto}
+.ask-res{margin-top:6px;color:var(--muted)}
+.ask-res i{color:var(--faint);font-style:normal}
+.ask-table{overflow-x:auto;max-width:100%}
+.ask-table table{border-collapse:collapse;margin:4px 0;font:400 12px var(--mono)}
+.ask-table th,.ask-table td{padding:3px 14px 3px 0;text-align:left;white-space:nowrap}
+.ask-table th{color:var(--faint);font-weight:500}
+.ask-table td{color:var(--ink2)}
+.ask-err{color:var(--bad-ink)}
+.ask-a{font-size:15px;line-height:1.6}
+.ask-a:empty{display:none}
+.ask-a p{margin:0 0 8px}
+.ask-a p:last-child{margin-bottom:0}
+.ask-a ul,.ask-a ol{margin:0 0 8px;padding-left:22px}
+.ask-a b{color:var(--acc);font-weight:600}
+.ask-a code{font:400 13px var(--mono)}
+.ask-fail{color:var(--bad-ink)}
+.ask-foot{display:flex;justify-content:flex-end}
+@media (max-width:720px){
+  .ask-form{flex-direction:column}
+  .ask-form .btn{width:100%}
+}
+
 /* ---------- responsive ---------- */
 @media (max-width:1000px){
   .hero,.split,.exp-grid{grid-template-columns:1fr}
@@ -511,7 +563,7 @@ body.app-enter .app{animation:appIn 1.1s var(--out) both}
   .top{margin-bottom:24px}
   .nav{order:3;width:100%;justify-content:space-between}
   .nav{gap:0}
-  .nav-btn{padding:10px 4px;flex:1;font-size:13px}
+  .nav-btn{padding:10px 2px;flex:auto;font-size:12px}   /* sized by their text: six tabs fit a 375px phone */
   .search{width:100%}
   .erow.full .acts .icon-btn{width:36px;height:36px}
   .kbd-btn{display:none}

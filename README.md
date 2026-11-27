@@ -44,15 +44,17 @@ Not built yet: password reset by email (it needs an email provider), and email v
 - **Tags**: add tags like `#work` or `#trip-bali` to an expense. Search with `#tag`, and see totals by tag in Summary.
 - **Receipts**: attach a photo or PDF (up to 10 MB) to any expense.
 - **CSV import/export**: export a spreadsheet, or import a bank statement CSV. The importer detects Date, Description, and Amount or Debit/Credit columns, previews the rows, and skips duplicates.
+- **Ask**: ask about your spending in plain English ("How much did I spend on food in October?"). A local model running in [Ollama](https://ollama.com) writes and runs read-only SQL and shows its working. It's free and private, and also works from the terminal with `.venv/bin/python agent.py`. See [AGENT.md](AGENT.md).
 
-Keyboard: `N` new expense · `⌘K` command palette · `1`–`5` switch views.
+Keyboard: `N` new expense · `⌘K` command palette · `1`–`6` switch views.
 
 ## Layout
 
 ```
 server/   main.py (API routes) · auth.py (accounts, sessions) · db.py (schema + migrations) · recurring.py · csvio.py
-web/      index.html · css/app.css · js/core.js (state + API) · js/orb.js · js/app.js
+web/      index.html · css/app.css · js/core.js (state + API) · js/orb.js · js/app.js · js/ask.js
 tests/    API tests: .venv/bin/pip install -r requirements-dev.txt && .venv/bin/pytest
+agent.py  the Ask agent (also a terminal tool) · agent_test/ fake test data + a 10-question eval
 legacy/   the original single-file version
 ```
 
